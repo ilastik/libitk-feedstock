@@ -1,4 +1,9 @@
 {% set version = "4.13.0" %}
+# We need this variable here in meta.yaml, so we better set it
+{% if not DO_NOT_BUILD_WITH_CXX11_ABI is defined %}
+  {% set DO_NOT_BUILD_WITH_CXX11_ABI = 0 %}
+{% endif %}
+{% set DO_NOT_BUILD_WITH_CXX11_ABI = DO_NOT_BUILD_WITH_CXX11_ABI|int %}
 
 package:
   name: libitk
@@ -54,8 +59,16 @@ test:
     - test -d $PREFIX/include/ITK*                        # [not win]
     - if not exist %LIBRARY_INC%\\ITK* exit 1             # [win]
     - itkTestDriver -- echo "Runtime ITK OK"
+# make sure to pass the compatibility flag when building the test example
+# otherwise it will build with the default (CXX11) abi
+# -> link errors
+{% if DO_NOT_BUILD_WITH_CXX11_ABI == 1 %}
+    - cmake -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -D "CMAKE_SYSTEM_PREFIX_PATH:FILEPATH=${PREFIX}" ./example  # [not win]
+    - cmake --build . --config Release
+{% else %}
     - cmake -D "CMAKE_SYSTEM_PREFIX_PATH:FILEPATH=${PREFIX}" ./example  # [not win]
-    - cmake --build . --config Release                                  # [not win]
+    - cmake --build . --config Release
+{% endif %}                               # [not win]
 
 about:
   home: http://www.itk.org
