@@ -6,6 +6,11 @@ if [ $ARCH == 32 -a "${OSX_ARCH:-notosx}" == "notosx" ]; then
     export CXXFLAGS="${CXXFLAGS} -m32"
 fi
 
+# enable compilation without CXX abi to stay compatible with gcc < 5 built packages
+if [[ ${DO_NOT_BUILD_WITH_CXX11_ABI} == '1' ]]; then
+    CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}"
+fi
+
 BUILD_DIR=${SRC_DIR}/build
 mkdir ${BUILD_DIR}
 cd ${BUILD_DIR}
@@ -29,6 +34,7 @@ cmake \
     -D CMAKE_BUILD_TYPE:STRING=RELEASE \
     -D "CMAKE_SYSTEM_PREFIX_PATH:FILEPATH=${PREFIX}" \
     -D "CMAKE_INSTALL_PREFIX=${PREFIX}" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
     "${SRC_DIR}"
 
 ninja -j $((${CPU_COUNT}+1))

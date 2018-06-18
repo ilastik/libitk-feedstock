@@ -1,4 +1,9 @@
 {% set version = "4.13.0" %}
+# We need this variable here in meta.yaml, so we better set it
+{% if not DO_NOT_BUILD_WITH_CXX11_ABI is defined %}
+  {% set DO_NOT_BUILD_WITH_CXX11_ABI = 0 %}
+{% endif %}
+{% set DO_NOT_BUILD_WITH_CXX11_ABI = DO_NOT_BUILD_WITH_CXX11_ABI|int %}
 
 package:
   name: libitk
@@ -9,12 +14,15 @@ source:
   sha256: 37122d65b89699df33f34e0859f1e7adf5a6222060dc1c47383ff7aa4531223a
 
 build:
-    number: 0
+    number: 2
     skip: True   # [win and py36]
     features:
     - vc9   # [win and py27]
     - vc10  # [win and py34]
     - vc14  # [win and py>=35]
+    script_env:
+    # Control building with CXX11 abi
+    - DO_NOT_BUILD_WITH_CXX11_ABI  # [linux]
 
 requirements:
   build:
@@ -22,7 +30,7 @@ requirements:
     - cmake    >=3.3
     - ninja
     - expat    2.1.*
-    - hdf5     1.8.18|1.8.18.*  # [not win]
+    - hdf5     # [not win]
     - jpeg     9*
     - libtiff  4.0.*
     - libpng   >=1.6.27,<1.7
@@ -33,10 +41,12 @@ requirements:
     - vc 14    # [win and py>=35]
   run:
     - expat    2.1.*
-    - hdf5     1.8.18|1.8.18.*  # [not win]
+    - hdf5     # [not win]
     - jpeg     9*
     - libtiff  4.0.*
     - libpng   >=1.6.27,<1.7
+    # in order to suppor older linux distros after gcc5 switch:
+    - libstdcxx-ng >=5.4.0  # [linux]
     - zlib     1.2.*
     - vc 9   # [win and py27]
     - vc 10  # [win and py34]
@@ -51,8 +61,16 @@ test:
     - test -d $PREFIX/include/ITK*                        # [not win]
     - if not exist %LIBRARY_INC%\\ITK* exit 1             # [win]
     - itkTestDriver -- echo "Runtime ITK OK"
+# make sure to pass the compatibility flag when building the test example
+# otherwise it will build with the default (CXX11) abi
+# -> link errors
+{% if DO_NOT_BUILD_WITH_CXX11_ABI == 1 %}
+    - cmake -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -D "CMAKE_SYSTEM_PREFIX_PATH:FILEPATH=${PREFIX}" ./example  # [not win]
+    - cmake --build . --config Release
+{% else %}
     - cmake -D "CMAKE_SYSTEM_PREFIX_PATH:FILEPATH=${PREFIX}" ./example  # [not win]
-    - cmake --build . --config Release                                  # [not win]
+    - cmake --build . --config Release
+{% endif %}                               # [not win]
 
 about:
   home: http://www.itk.org
